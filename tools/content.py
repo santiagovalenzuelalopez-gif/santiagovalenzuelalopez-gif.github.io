@@ -13,6 +13,10 @@ import os
 FORM_ENDPOINT = os.environ.get("FORM_ENDPOINT", "https://api.web3forms.com/submit")
 FORM_ACCESS_KEY = os.environ.get("FORM_ACCESS_KEY", "d99a68cd-89f9-48df-b751-98b9baff06af")
 
+# CV descargable: el botón aparece SOLO si este archivo existe. Debe ser una versión SIN teléfono (un PDF con el
+# número tapado por un recuadro sigue conteniendo el texto: hay que exportarlo sin él desde el documento original).
+CV_FILE = "assets/Santiago-Valenzuela-Lopez-CV.pdf"
+
 GITHUB_USER = "santiagovalenzuelalopez-gif"
 SITE_URL = f"https://{GITHUB_USER}.github.io"
 LINKEDIN = "https://www.linkedin.com/in/santiagovalenzuelal/"

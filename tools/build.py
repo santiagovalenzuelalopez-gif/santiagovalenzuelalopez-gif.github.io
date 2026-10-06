@@ -103,6 +103,12 @@ def header(root: str) -> str:
 
 
 FORM_ENABLED = bool(C.FORM_ACCESS_KEY)
+CV_ENABLED = (ROOT / C.CV_FILE).is_file()
+
+
+def cv_button() -> str:
+    """Botón de descarga del CV: solo si el archivo existe en el repositorio."""
+    return f'\n    <a class="btn" href="{C.CV_FILE}" download>Descargar CV</a>' if CV_ENABLED else ""
 
 
 def contact_href(root: str) -> str:
@@ -262,7 +268,7 @@ def build_index() -> str:
     <a class="btn primary" href="#proyectos">Ver proyectos</a>
     <a class="btn" href="{REPO_URL}" rel="me">GitHub</a>
     <a class="btn" href="{C.LINKEDIN}" rel="me">LinkedIn</a>
-    <a class="btn" href="{contact_href('')}">Escríbeme</a>
+    <a class="btn" href="{contact_href('')}">Escríbeme</a>{cv_button()}
   </div>
   <div class="facts">
     <div class="fact"><b>63</b><span>servicios Cloud Run bajo estándares de gobernanza</span></div>
