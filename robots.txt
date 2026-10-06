@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://santiagovalenzuelalopez-gif.github.io/sitemap.xml

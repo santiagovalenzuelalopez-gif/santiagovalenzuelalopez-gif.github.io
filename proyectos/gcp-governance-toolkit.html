@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gobernanza como código para Cloud Run — Santiago Valenzuela López</title>
+<meta name="description" content="Un estándar de servicio ejecutable (35 reglas con excepciones justificadas) y la observabilidad generada como código: alertas, dashboards, métricas de logs y presupuesto.">
+<meta name="theme-color" content="#0a0c10">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://santiagovalenzuelalopez-gif.github.io/proyectos/gcp-governance-toolkit.html">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CO">
+<meta property="og:title" content="Gobernanza como código para Cloud Run — Santiago Valenzuela López">
+<meta property="og:description" content="Un estándar de servicio ejecutable (35 reglas con excepciones justificadas) y la observabilidad generada como código: alertas, dashboards, métricas de logs y presupuesto.">
+<meta property="og:url" content="https://santiagovalenzuelalopez-gif.github.io/proyectos/gcp-governance-toolkit.html">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/style.css">
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({
+  startOnLoad: true, securityLevel: "strict", theme: "base",
+  themeVariables: {
+    background: "#0f1219", fontFamily: "Inter, system-ui, sans-serif", fontSize: "14px",
+    primaryColor: "#181d2a", primaryTextColor: "#e7eaf0", primaryBorderColor: "#3a4559",
+    secondaryColor: "#131722", tertiaryColor: "#0f1219", lineColor: "#7b8699", textColor: "#c3cad6",
+    mainBkg: "#181d2a", nodeBorder: "#3a4559", clusterBkg: "#131722", edgeLabelBackground: "#0f1219",
+    actorBkg: "#181d2a", actorBorder: "#3a4559", actorTextColor: "#e7eaf0", signalColor: "#98a2b3",
+    signalTextColor: "#c3cad6", noteBkgColor: "#131722", noteTextColor: "#c3cad6", noteBorderColor: "#3a4559"
+  },
+  flowchart: { curve: "basis", htmlLabels: true }
+});
+</script>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<header class="site-header">
+  <div class="container nav">
+    <a class="brand" href="../">santiago<span>.</span>valenzuela</a>
+    <nav aria-label="Principal"><ul>
+      <li><a href="../#proyectos">Proyectos</a></li>
+      <li><a href="../#experiencia">Experiencia</a></li>
+      <li><a href="../#stack">Stack</a></li>
+      <li><a href="../#contacto">Contacto</a></li>
+    </ul></nav>
+  </div>
+</header>
+<main id="contenido" class="case"><div class="container">
+  <a class="back" href="../#proyectos">← Todos los proyectos</a>
+  <div class="head-row"><span class="badge built">Diseñé y construí</span><span class="k" style="font:500 .8rem var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.05em">Gobernanza · Observabilidad · Herramientas de desarrollo</span></div>
+  <h1>Gobernanza como código para Cloud Run</h1>
+  <p class="summary">Un estándar de servicio <strong>ejecutable</strong> (35 reglas con excepciones justificadas) y la observabilidad generada como código: alertas, dashboards, métricas de logs y presupuesto.</p>
+  <ul class="tags"><li>Python</li><li>AST</li><li>CLI</li><li>Cloud Monitoring</li><li>Skills de Claude</li></ul>
+  <div class="metrics"><div class="metric"><b>102</b><span>tests</span></div><div class="metric"><b>35</b><span>reglas con ID y severidad</span></div><div class="metric"><b>38</b><span>violaciones probadas una a una</span></div></div>
+
+  <section class="prose"><h2>El problema</h2><p style="color:#c3cad6">Un estándar que vive en un documento se incumple sin que nadie se entere. Y las alertas copiadas de la consola acaban siendo ruido: colapsadas en una sola serie, sin ventana y sin decir qué hacer.</p></section>
+
+  <section><h2>Arquitectura</h2>
+    <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart LR
+    R[Repositorio del servicio] --&gt;|govkit check| C{Reglas S·A·C·E·D·M·P}
+    W[.govkit.yml&lt;br/&gt;excepciones con motivo] --&gt; C
+    C --&gt;|texto · JSON · Markdown| O[Reporte + código de salida]
+    O --&gt; CI[CI / skill de Claude]
+    P[Proyecto GCP] --&gt;|govkit observability| G[Alertas · Dashboards&lt;br/&gt;Métricas · Presupuesto]</pre></figure>
+  </section>
+
+  <section><h2>Decisiones de diseño</h2><article class="decision">
+  <h3><i>01</i>Análisis con el AST, no con expresiones regulares</h3>
+  <dl>
+    <dt>Problema</dt><dd>Con regex, un comentario que diga <code># severity</code> cuenta como cumplimiento.</dd>
+    <dt>Decisión</dt><dd class="main">El código se analiza con el árbol sintáctico; y el Dockerfile se interpreta como lo hace Docker (un <code>CMD [ ... ]</code> que no es JSON es forma shell; la forma exec no expande <code>$PORT</code>).</dd>
+    <dt>Resultado</dt><dd>El verificador falla cuando debe: cada regla se prueba estropeando un repo conforme de una en una.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>02</i>Excepciones justificadas, no silenciadas</h3>
+  <dl>
+    <dt>Problema</dt><dd>Algunos servicios incumplen una regla a propósito (un webhook interno no se versiona).</dd>
+    <dt>Decisión</dt><dd class="main">Se declaran en <code>.govkit.yml</code> <strong>con un motivo</strong> y aparecen en el reporte. Una excepción sin motivo no se aplica y es un fallo crítico.</dd>
+    <dt>Resultado</dt><dd>Nadie puede «hacer pasar» el reporte sin explicarlo.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>03</i>El reporte nunca imprime un secreto</h3>
+  <dl>
+    <dt>Problema</dt><dd>El reporte acaba en logs de CI.</dd>
+    <dt>Decisión</dt><dd class="main">Las credenciales se detectan por el nombre de la variable y por la forma del valor, pero solo se imprime el nombre. Un test lo comprueba en los tres formatos.</dd>
+    <dt>Resultado</dt><dd>Detectar una credencial no puede ser una forma de filtrarla.</dd>
+  </dl>
+</article><article class="decision">
+  <h3><i>04</i>Alertas que se pueden accionar</h3>
+  <dl>
+    <dt>Problema</dt><dd>Sin agrupar, <code>crossSeriesReducer</code> colapsa decenas de servicios en una serie; con <code>duration: 0</code> cada log ERROR abría un incidente.</dd>
+    <dt>Decisión</dt><dd class="main">Una política por métrica agrupada por servicio, ventanas sostenidas y documentación de diagnóstico; umbral de VPC calculado sobre el máximo real; presupuesto sobre gasto real.</dd>
+    <dt>Resultado</dt><dd>Cada lección es un test, y <code>apply</code> es idempotente y tiene <code>--dry-run</code>.</dd>
+  </dl>
+</article></section>
+
+  <section><h2>Qué se verificó</h2><ul class="checks"><li>102 tests: 38 violaciones del estándar detectadas una a una, falsos positivos conocidos, invariantes de las alertas y dashboards, y el aplicador con un ejecutor de <code>gcloud</code> falso.</li><li>Se ejecutó sobre los cinco servicios FastAPI de este portafolio: sin hallazgos críticos; los medios que quedan son reales y no se retocaron. El propio verificador mostró dos huecos en sus reglas, ya corregidos y convertidos en tests.</li><li>CI en verde.</li></ul></section>
+
+  <section><h2>Límites: lo que no se verificó</h2><ul class="checks limits"><li>Es análisis estático del repositorio: no consulta la nube (no conoce el <code>ingress</code> real de un servicio desplegado).</li><li>La parte de observabilidad no se ha ejecutado contra un proyecto real en esta forma genérica.</li></ul></section>
+
+  <div class="repo-cta">
+    <a class="btn primary" href="https://github.com/santiagovalenzuelalopez-gif/gcp-governance-toolkit">Ver el repositorio</a>
+    <a class="btn" href="https://github.com/santiagovalenzuelalopez-gif/gcp-governance-toolkit#readme">Leer el README</a>
+  </div>
+
+  <nav class="pager" aria-label="Proyectos"><a href="cloudrun-wif-cicd-kit.html">← Anterior<b>CI/CD sin llaves hacia Cloud Run</b></a></nav>
+</div></main>
+<footer class="site-footer">
+  <div class="container row">
+    <span>© 2026 Santiago Valenzuela López · Cali, Colombia</span>
+    <span><a href="https://github.com/santiagovalenzuelalopez-gif" rel="me">GitHub</a> · <a href="https://www.linkedin.com/in/santiagovalenzuelal/" rel="me">LinkedIn</a> · <a href="mailto:santiagovlopez20@hotmail.com">Correo</a></span>
+  </div>
+</footer>
+</body>
+</html>
