@@ -181,3 +181,29 @@ h2 { font-size: clamp(1.7rem, 3.4vw, 2.2rem); letter-spacing: -0.025em; line-hei
   body { background: #fff; color: #000; }
   .site-header, .cta, .repo-cta, .pager { display: none; }
 }
+
+/* ---------- Formulario de contacto ---------- */
+.contact-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 56px; align-items: start; }
+.contact-grid .lead { margin-bottom: 26px; }
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; }
+.field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; position: relative; }
+.field label { font: 600 0.84rem var(--font); color: #c3cad6; }
+.field input, .field select, .field textarea {
+  width: 100%; font: 400 1rem var(--font); color: var(--text); background: var(--bg-elev);
+  border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 13px; transition: border-color .15s, box-shadow .15s;
+}
+.field textarea { resize: vertical; min-height: 130px; line-height: 1.55; }
+.field select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 55%, calc(100% - 15px) 55%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 38px; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.touched .field input:invalid, .touched .field textarea:invalid { border-color: var(--danger); }
+.field .hint { position: absolute; right: 4px; bottom: -19px; font: 400 0.74rem var(--mono); color: var(--faint); }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+#contact-form button[type=submit] { width: 100%; justify-content: center; margin-top: 10px; cursor: pointer; font-size: 1rem; }
+#contact-form button[disabled] { opacity: .6; cursor: progress; transform: none; }
+#cf-status { margin: 14px 0 0; min-height: 1.4em; font-size: 0.95rem; }
+#cf-status[data-kind="ok"] { color: var(--accent); }
+#cf-status[data-kind="error"] { color: var(--danger); }
+.form-note { margin: 14px 0 0; color: var(--faint); font-size: 0.82rem; line-height: 1.5; }
+.form-note a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 860px) { .contact-grid { grid-template-columns: 1fr; gap: 28px; } .form-card { padding: 22px; } }

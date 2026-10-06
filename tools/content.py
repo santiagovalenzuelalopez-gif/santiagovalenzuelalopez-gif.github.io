@@ -5,6 +5,14 @@ reglas, etc.) son los reales de cada repo; lo que NO se verificó se dice en 'li
 `código` y **negrita**.
 """
 
+import os
+
+# Formulario de contacto (Web3Forms). La access_key es PÚBLICA por diseño (va en el HTML) y está ligada al correo
+# de destino en el panel del servicio, por eso el correo no aparece en el sitio. Vacía = el sitio muestra el
+# botón de correo de siempre. Las variables de entorno solo se usan para probar con un servidor simulado.
+FORM_ENDPOINT = os.environ.get("FORM_ENDPOINT", "https://api.web3forms.com/submit")
+FORM_ACCESS_KEY = os.environ.get("FORM_ACCESS_KEY", "")
+
 GITHUB_USER = "santiagovalenzuelalopez-gif"
 SITE_URL = f"https://{GITHUB_USER}.github.io"
 LINKEDIN = "https://www.linkedin.com/in/santiagovalenzuelal/"

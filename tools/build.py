@@ -102,11 +102,19 @@ def header(root: str) -> str:
 </header>"""
 
 
-def footer() -> str:
+FORM_ENABLED = bool(C.FORM_ACCESS_KEY)
+
+
+def contact_href(root: str) -> str:
+    """Con formulario activo, 'contacto' lleva al formulario (el correo no se publica); si no, al correo."""
+    return f"{root}#contacto" if FORM_ENABLED else f"mailto:{C.EMAIL}"
+
+
+def footer(root: str = "") -> str:
     return f"""<footer class="site-footer">
   <div class="container row">
     <span>© 2026 {esc(C.PROFILE['name'])} · {esc(C.PROFILE['location'])}</span>
-    <span><a href="{REPO_URL}" rel="me">GitHub</a> · <a href="{C.LINKEDIN}" rel="me">LinkedIn</a> · <a href="mailto:{C.EMAIL}">Correo</a></span>
+    <span><a href="{REPO_URL}" rel="me">GitHub</a> · <a href="{C.LINKEDIN}" rel="me">LinkedIn</a> · <a href="{contact_href(root)}">Contacto</a></span>
   </div>
 </footer>
 </body>
@@ -131,6 +139,109 @@ def card(p: dict) -> str:
 </a>"""
 
 
+CONTACT_SCRIPT = r"""<script>
+(() => {
+  const form = document.getElementById("contact-form");
+  if (!form) return;
+  const cfg = JSON.parse(document.getElementById("contact-config").textContent);
+  const status = document.getElementById("cf-status");
+  const button = form.querySelector("button[type=submit]");
+  const message = document.getElementById("cf-message");
+  const counter = document.getElementById("cf-count");
+  const COOLDOWN_MS = 30000;
+  const say = (text, kind) => { status.textContent = text; status.dataset.kind = kind || ""; };
+  const recent = () => { try { return Date.now() - Number(sessionStorage.getItem("cf-last") || 0) < COOLDOWN_MS; } catch (e) { return false; } };
+  const mark = () => { try { sessionStorage.setItem("cf-last", String(Date.now())); } catch (e) { /* sin almacenamiento: no pasa nada */ } };
+
+  message.addEventListener("input", () => { counter.textContent = message.value.length; });
+  // Cualquier reset (éxito, trampa de bots...) deja el formulario limpio: sin bordes de error ni contador viejo
+  form.addEventListener("reset", () => { form.classList.remove("touched"); counter.textContent = "0"; });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    form.classList.add("touched");
+    if (form.elements.botcheck.checked) { say("¡Gracias! Recibí tu mensaje.", "ok"); form.reset(); return; }  // trampa para bots
+    if (!form.checkValidity()) {
+      say("Revisa los campos marcados: nombre, un correo válido y un mensaje de al menos 20 caracteres.", "error");
+      const first = form.querySelector(":invalid"); if (first) first.focus();
+      return;
+    }
+    if (recent()) { say("Acabas de enviar un mensaje. Espera unos segundos antes de enviar otro.", "error"); return; }
+
+    button.disabled = true; button.textContent = "Enviando…"; say("", "");
+    try {
+      const data = Object.fromEntries(new FormData(form));
+      const response = await fetch(cfg.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({
+          access_key: cfg.key, from_name: "Portafolio", subject: "[Portafolio] " + data.topic + " — " + data.name,
+          name: data.name, email: data.email, topic: data.topic, message: data.message,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) throw new Error(result.message || ("HTTP " + response.status));
+      mark(); form.reset(); form.classList.remove("touched"); counter.textContent = "0";
+      say("¡Gracias! Recibí tu mensaje y te responderé pronto.", "ok");
+    } catch (error) {
+      say("No pude enviar el mensaje. Inténtalo de nuevo en un momento o escríbeme por LinkedIn.", "error");
+    } finally {
+      button.disabled = false; button.textContent = "Enviar mensaje";
+    }
+  });
+})();
+</script>"""
+
+
+def contact_section() -> str:
+    links = f"""<div class="cta">
+      <a class="btn" href="{C.LINKEDIN}" rel="me">LinkedIn</a>
+      <a class="btn" href="{REPO_URL}" rel="me">GitHub</a>
+    </div>"""
+    if not FORM_ENABLED:  # sin formulario configurado: el botón de correo de siempre
+        return f"""<section id="contacto" class="contact"><div class="container">
+  <p class="kicker">Contacto</p>
+  <h2>Conversemos</h2>
+  <p class="lead">Estoy abierto a roles de backend, plataforma cloud e IA aplicada. Lo más rápido es un correo o un mensaje por LinkedIn.</p>
+  <div class="cta">
+    <a class="btn primary" href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a>
+    <a class="btn" href="{C.LINKEDIN}" rel="me">LinkedIn</a>
+    <a class="btn" href="{REPO_URL}" rel="me">GitHub</a>
+  </div>
+</div></section>
+</main>"""
+    topics = "".join(f"<option>{esc(t)}</option>" for t in ("Oportunidad laboral", "Proyecto o colaboración", "Una pregunta sobre un proyecto", "Otro"))
+    config = json.dumps({"endpoint": C.FORM_ENDPOINT, "key": C.FORM_ACCESS_KEY})
+    return f"""<section id="contacto" class="contact"><div class="container contact-grid">
+  <div>
+    <p class="kicker">Contacto</p>
+    <h2>Conversemos</h2>
+    <p class="lead">Estoy abierto a roles de backend, plataforma cloud e IA aplicada. Cuéntame qué tienes en mente y te respondo por correo.</p>
+    {links}
+  </div>
+  <div class="form-card">
+    <form id="contact-form" novalidate>
+      <div class="field"><label for="cf-name">Nombre</label>
+        <input id="cf-name" name="name" required maxlength="80" autocomplete="name"></div>
+      <div class="field"><label for="cf-email">Tu correo</label>
+        <input id="cf-email" name="email" type="email" required maxlength="120" autocomplete="email" inputmode="email"></div>
+      <div class="field"><label for="cf-topic">Motivo</label>
+        <select id="cf-topic" name="topic">{topics}</select></div>
+      <div class="field"><label for="cf-message">Mensaje</label>
+        <textarea id="cf-message" name="message" required minlength="20" maxlength="2000" rows="6"></textarea>
+        <span class="hint"><span id="cf-count">0</span>/2000</span></div>
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn primary" type="submit">Enviar mensaje</button>
+      <p id="cf-status" role="status" aria-live="polite"></p>
+      <p class="form-note">El mensaje se envía a través de <a href="https://web3forms.com" rel="noopener">Web3Forms</a> directamente a mi correo. No guardo tus datos ni los uso para nada más que responderte.</p>
+    </form>
+    <script type="application/json" id="contact-config">{config}</script>
+  </div>
+</div></section>
+</main>
+{CONTACT_SCRIPT}"""
+
+
 def build_index() -> str:
     P = C.PROFILE
     total_tests = 19 + 27 + 41 + 28 + 76 + (56 + 28) + 102  # tests de los siete repositorios
@@ -151,7 +262,7 @@ def build_index() -> str:
     <a class="btn primary" href="#proyectos">Ver proyectos</a>
     <a class="btn" href="{REPO_URL}" rel="me">GitHub</a>
     <a class="btn" href="{C.LINKEDIN}" rel="me">LinkedIn</a>
-    <a class="btn" href="mailto:{C.EMAIL}">Escríbeme</a>
+    <a class="btn" href="{contact_href('')}">Escríbeme</a>
   </div>
   <div class="facts">
     <div class="fact"><b>63</b><span>servicios Cloud Run bajo estándares de gobernanza</span></div>
@@ -204,18 +315,8 @@ def build_index() -> str:
   <div class="edu">{edu}</div>
 </div></section>""")
 
-    out.append(f"""<section id="contacto" class="contact"><div class="container">
-  <p class="kicker">Contacto</p>
-  <h2>Conversemos</h2>
-  <p class="lead">Estoy abierto a roles de backend, plataforma cloud e IA aplicada. Lo más rápido es un correo o un mensaje por LinkedIn.</p>
-  <div class="cta">
-    <a class="btn primary" href="mailto:{C.EMAIL}">{esc(C.EMAIL)}</a>
-    <a class="btn" href="{C.LINKEDIN}" rel="me">LinkedIn</a>
-    <a class="btn" href="{REPO_URL}" rel="me">GitHub</a>
-  </div>
-</div></section>
-</main>""")
-    out.append(footer())
+    out.append(contact_section())
+    out.append(footer(""))
     return "\n".join(out)
 
 
@@ -269,7 +370,7 @@ def build_case(index: int) -> str:
 
   <nav class="pager" aria-label="Proyectos">{pager_prev}{pager_next}</nav>
 </div></main>""")
-    out.append(footer())
+    out.append(footer("../"))
     return "\n".join(out)
 
 
@@ -284,7 +385,7 @@ def build_404() -> str:
   <p class="tagline">Puede que el enlace haya cambiado. Los proyectos siguen en la página principal.</p>
   <div class="cta"><a class="btn primary" href="/">Volver al inicio</a></div>
 </div></section></main>""",
-        footer(),
+        footer("/"),
     ])
 
 
